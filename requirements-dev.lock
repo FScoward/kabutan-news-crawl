@@ -9,3 +9,17 @@
 #   generate-hashes: false
 
 -e file:.
+beautifulsoup4==4.12.3
+    # via kabutan-news-crawl
+certifi==2024.2.2
+    # via requests
+charset-normalizer==3.3.2
+    # via requests
+idna==3.7
+    # via requests
+requests==2.32.3
+    # via kabutan-news-crawl
+soupsieve==2.5
+    # via beautifulsoup4
+urllib3==2.2.1
+    # via requests
