@@ -1,2 +1,2 @@
-def hello() -> str:
-    return "Hello from kabutan-news-crawl!"
+# src/kabutan_news_crawl/__init__.py
+__all__ = ["crawler"]
