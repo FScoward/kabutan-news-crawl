@@ -1,6 +1,8 @@
+from time import sleep
 import requests
 from bs4 import BeautifulSoup
-from urllib.parse import urljoin, urlparse, parse_qs, urlencode
+from urllib.parse import urljoin
+import json
 
 # ベースURL
 base_url = "https://kabutan.jp"
@@ -8,11 +10,23 @@ base_url = "https://kabutan.jp"
 # ニュースのURL（最初のページ）
 initial_page_url = "https://kabutan.jp/news/marketnews/?date=20240531"
 
+# ニュースデータを格納するリスト
+all_news_data = []
+
+# 最大ページ数の制限を設定
+max_pages = 50
+current_page = 1
+
 
 def fetch_page_content(url):
     print(f"Fetching URL: {url}")
-    response = requests.get(url)
-    response.raise_for_status()
+    sleep(0.5)
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+    except:
+        print()
+
     return response.text
 
 
@@ -57,6 +71,7 @@ def parse_news_list(html_content):
 def parse_article_content(article_url):
     print(f"Fetching article URL: {article_url}")
     article_html = fetch_page_content(article_url)
+    print("Fetch complete")
     article_soup = BeautifulSoup(article_html, "html.parser")
 
     # 記事の内容を抽出する部分を修正
@@ -71,34 +86,49 @@ def parse_article_content(article_url):
         return "記事の内容を取得できませんでした。"
 
 
-def crawl_news(url):
+def crawl_news(url, page):
+    global all_news_data, max_pages, current_page
+
+    if page > max_pages:
+        print("Reached maximum page limit. Stopping crawl.")
+        return
+
+    print(f"Crawling page {page} with URL: {url}")
     html_content = fetch_page_content(url)
+    print(f"Complete Crawling page {page} with URL: {url}")
     news_data, soup = parse_news_list(html_content)
 
     if not news_data:
         print("No news items found on this page. Stopping crawl.")
         return
 
+    print("")
     for news in news_data:
         article_text = parse_article_content(news["link"])
         news["content"] = article_text
-        print(
-            f"Time: {news['time']}\nCategory: {news['category']}\nTitle: {news['title']}\nLink: {news['link']}\nContent: {news['content']}\n"
-        )
+        all_news_data.append(news)
+        # print(
+        #     f"Time: {news['time']}\nCategory: {news['category']}\nTitle: {news['title']}\nLink: {news['link']}\nContent: {news['content']}\n"
+        # )
 
     # 次のページがあるか確認
     next_page_tag = soup.find("a", string="次へ＞")
     if next_page_tag:
         next_page_link = next_page_tag["href"]
-        parsed_url = urlparse(url)
-        query_params = parse_qs(parsed_url.query)
-        query_params["page"] = [str(int(query_params.get("page", [1])[0]) + 1)]
-        next_page_full_link = f"{parsed_url.scheme}://{parsed_url.netloc}{parsed_url.path}?{urlencode(query_params, doseq=True)}"
+        next_page_full_link = urljoin(initial_page_url, next_page_link)
         print(f"Next page URL: {next_page_full_link}")
-        crawl_news(next_page_full_link)
+        current_page += 1
+        crawl_news(next_page_full_link, current_page)
     else:
         print("No more pages to crawl.")
 
 
+def save_news_to_json(file_path):
+    with open(file_path, "w", encoding="utf-8") as f:
+        json.dump(all_news_data, f, ensure_ascii=False, indent=4)
+    print(f"News data saved to {file_path}")
+
+
 if __name__ == "__main__":
-    crawl_news(initial_page_url)
+    crawl_news(initial_page_url, current_page)
+    save_news_to_json("news_data.json")
